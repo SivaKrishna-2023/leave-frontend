@@ -1,33 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { FaHourglassHalf, FaCheckCircle, FaTimesCircle, FaSun, FaMoon, FaChevronLeft, FaChevronRight} from "react-icons/fa";
+import { FaHourglassHalf, FaCheckCircle, FaTimesCircle} from "react-icons/fa";
+import { MdOutlineFileDownload } from "react-icons/md";
+import Pagination, {getPaginationData} from '../utils/Pagination';
 
-export default function LeaveApprovalDashboard({managerId = 8}) {
+export default function LeaveApprovalDashboard({managerId = 'MTL1006'}) {
   const [Data, setData] = useState(null);
   const [filteredData, setFilteredData] = useState([]);
   const [count, setCount] = useState(0);
-  const [statusCount, setStatusCount] = useState({
-    pending: 0,
-    approved: 0,
-    rejected: 0,
-  });
-  const [darkMode, setDarkMode] = useState(false);
+  const [statusCount, setStatusCount] = useState({pending: 0, approved: 0, rejected: 0,});
   const [isEditing, setIsEditing] = useState({}); //state to track editing
   //state varaiables for managing modal, rejection reason, and leave date
   const [showModal, setShowModal] = useState(false);
   const [selectedLeaveId, setSelectedLeaveId] = useState(null);
   const [rejectionReason, setRejectionReason] = useState("");
-  
-
   // pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [employeesPerPage] = useState(5);
 
-  const toggleDarkMode = () => {
-    setDarkMode(!darkMode);
-    document.documentElement.classList.toggle("dark");
-  };
-  
   // open modal and set selected leave ID
   const openRejectModal = (id) => {
     setSelectedLeaveId(id);
@@ -39,11 +29,11 @@ export default function LeaveApprovalDashboard({managerId = 8}) {
     setShowModal(false);
     setRejectionReason("");
   };
+ 
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-       
         const response = await axios.get(`http://localhost:8080/leave/manager/${managerId}`);
         const leaves = response.data;
         // Sort leaves with new entries at the top
@@ -61,7 +51,7 @@ export default function LeaveApprovalDashboard({managerId = 8}) {
       }
     };
     fetchData();
-  }, []);
+  }, [managerId]);
 
   const handleApprove = async (id) => {
     try {
@@ -86,6 +76,8 @@ export default function LeaveApprovalDashboard({managerId = 8}) {
 
     try {
       console.log(rejectionReason);
+      // Encode the rejectionReason to ensure proper handling of special characters
+    //const encodedReason = encodeURIComponent(rejectionReason);
       await axios.put(`http://localhost:8080/leave/reject/${selectedLeaveId}/${rejectionReason}`);
       const response = await axios.get(`http://localhost:8080/leave/manager/${managerId}`);
       const leaves = response.data;
@@ -117,42 +109,90 @@ export default function LeaveApprovalDashboard({managerId = 8}) {
     setIsEditing({ ...isEditing, [id]: !isEditing[id] });
   }
 
-
-
-  /*Pagination Logic
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = filteredData ? filteredData.slice(indexOfFirstItem, indexOfLastItem) : [];
- 
-  const totalPages = filteredData ? Math.ceil(filteredData.length / itemsPerPage) : 1;
-  */
-
-  // Pagination logic
-  const total = filteredData.length
-  const indexOfLastEmployee = currentPage * employeesPerPage;
-  const indexOfFirstEmployee = indexOfLastEmployee - employeesPerPage;
-  const currentItems = filteredData.slice(indexOfFirstEmployee, indexOfLastEmployee);
-  const totalPages = Math.ceil(filteredData.length / employeesPerPage);
-
+  // Get paginate data
+  const {totalPages, currentItems} = getPaginationData(filteredData, currentPage, employeesPerPage);
   const paginate = (pageNumber) => setCurrentPage(pageNumber);
-  
 
+  const headers = ["Employee", "Employee ID", "Start Date", "End Date", "Days", "Status", "Action"];
+  const renderRowData = (data) => {
+    const rowData = [
+      { key: "firstName", value: data.firstName },
+      { key: "employeeId", value: data.employeeId },
+      { key: "leaveStartDate", value: data.leaveStartDate },
+      { key: "leaveEndDate", value: data.leaveEndDate },
+      { key: "duration", value: data.duration },
+    ];
+  
+    return rowData.map((item) => (
+      <div key={item.key} className="p-2 text-xs">
+        {item.value}
+      </div>
+    ));
+  };
+  
+  const getStatusClass = (status) => {
+    switch (status) {
+      case "APPROVED":
+        return "text-green-600";
+      case "PENDING":
+        return "text-yellow-600";
+      case "REJECTED":
+        return "text-red-600";
+      default:
+        return "";
+    }
+  };
+
+  const getStatusIcon = (status) => {
+    switch (status) {
+      case "APPROVED":
+        return <FaCheckCircle />;
+      case "PENDING":
+        return <FaHourglassHalf />;
+      case "REJECTED":
+        return <FaTimesCircle />;
+      default:
+        return null;
+    }
+  };
+
+  const renderActions = (data) => {
+    if (data.leaveStatus === "PENDING" || isEditing[data.id]) {
+      return (
+        <>
+          <button
+            className="bg-green-500 text-white text-xs px-3 py-2 rounded"
+            onClick={() => handleApprove(data.id)}
+          >
+            Approve
+          </button>
+          <button
+            className="bg-red-500 text-white text-xs px-3 py-2 rounded"
+            onClick={() => openRejectModal(data.id)}
+          >
+            Reject
+          </button>
+        </>
+      );
+    }
+  
+    return (
+      <button
+        className="bg-blue-500 text-white text-xs px-3 py-2 rounded"
+        onClick={() => toggleEdit(data.id)}
+      >
+        Edit
+      </button>
+    );
+  };
   
 
   return (
-    <div className={` ${darkMode ? "dark:bg-gray-800" : ""}`}>
-      <div className="flex justify-between items-center mb-4">
-        <h1 className="text-2xl font-bold text-center dark:text-gray-400">LEAVE APPROVAL DASHBOARD</h1>
-        <button
-          className="text-2xl p-2 rounded-full"
-          onClick={toggleDarkMode}
-        >
-          {darkMode ? <FaSun className="text-yellow-400" /> : <FaMoon className="text-gray-600" />}
-        </button>
-      </div>
-
+    <div>
+        <h1 className="text-2xl font-bold text-center">LEAVE APPROVAL DASHBOARD</h1>
+      
       {/* Status Summary */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 border border-gray-300 p-4 dark:bg-gray-800 dark:text-white">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 border border-gray-300 p-4">
         <div className="text-center text-sm font-bold p-2">
           <button className="bg-gray-500 text-white rounded-lg text-xs px-4 py-2" onClick={() => filterByStatus('ALL')}>Total Requests</button>
         </div>
@@ -173,126 +213,78 @@ export default function LeaveApprovalDashboard({managerId = 8}) {
 
       {/* Leave Requests Table */}
       <div className="overflow-x-auto">
-        <div className="grid grid-cols-1 sm:grid-cols-7 bg-gray-100 dark:bg-gray-900 dark:text-white">
-          <div className="col-span-7 text-center text-md font-bold p-2 bg-gray-200 dark:bg-gray-700 dark:text-white">LEAVE REQUESTS</div>
+        <div className="grid grid-cols-1 sm:grid-cols-7 bg-gray-100">
+          <div className="col-span-7 text-center text-md font-bold p-2 bg-gray-200">LEAVE REQUESTS</div>
 
           {/* Table Header */}
-          <div className="p-2 border-b border-gray-300 text-center text-sm font-bold dark:text-gray-300">Employee</div>
-          <div className="p-2 border-b border-gray-300 text-center text-sm font-bold dark:text-gray-300">Employee ID</div>
-          <div className="p-2 border-b border-gray-300 text-center text-sm font-bold dark:text-gray-300">Start Date</div>
-          <div className="p-2 border-b border-gray-300 text-center text-sm font-bold dark:text-gray-300">End Date</div>
-          <div className="p-2 border-b border-gray-300 text-center text-sm font-bold dark:text-gray-300">Days</div>
-          <div className="p-2 border-b border-gray-300 text-center text-sm font-bold dark:text-gray-300">Status</div>
-          <div className="p-2 border-b border-gray-300 text-center text-sm font-bold dark:text-gray-300">Action</div>
+          {headers.map((header) => (
+    <div key={header} className="p-2 border-b border-gray-300 text-center text-sm font-bold">
+      {header}
+    </div>
+  ))}
         </div>
 
         {/* Table Body */}
-        {filteredData !== null && currentItems.map((data) => (
-          <div key={data.id} className="grid grid-cols-1 sm:grid-cols-7 text-center p-2 border-b border-gray-200 items-center bg-gray-100 dark:bg-gray-800 dark:text-white">
-            <div className="p-2 text-xs">{data.firstName}</div>
-            <div className="p-2 text-xs">{data.employeeId}</div>
-            <div className="p-2 text-xs">{data.leaveStartDate}</div>
-            <div className="p-2 text-xs">{data.leaveEndDate}</div>
-            <div className="p-2 text-xs">{data.duration}</div>
-            <div className={`p-2 text-xs flex items-center justify-center space-x-1 ${data.leaveStatus === 'APPROVED' ? 'text-green-600 dark:text-green-400' : data.leaveStatus === 'PENDING' ? 'text-yellow-600 dark:text-yellow-400' : 'text-red-600 dark:text-red-400'}`}>
-              {data.leaveStatus === 'APPROVED' ? <FaCheckCircle /> : data.leaveStatus === 'PENDING' ? <FaHourglassHalf /> : <FaTimesCircle />}
-              {data.leaveStatus}
-            </div>
-            <div className="p-2 flex justify-center space-x-2">
-              {/* Show Approve/Reject buttons if pending, else show Edit button */}
-              {data.leaveStatus === 'PENDING' ? (
-                <>
-                  <button className="bg-green-500 text-white text-xs px-3 py-2 rounded" onClick={() => handleApprove(data.id)}>Approve</button>
-                  <button className="bg-red-500 text-white text-xs px-3 py-2 rounded" onClick={() => openRejectModal(data.id)}>Reject</button>
-                </>
-              ) : (
-                isEditing[data.id] ? (
-                  <>
-                    <button className="bg-green-500 text-white text-xs px-3 py-2 rounded" onClick={() => handleApprove(data.id)}>Approve</button>
-                    <button className="bg-red-500 text-white text-xs px-3 py-2 rounded" onClick={() => openRejectModal(data.id)}>Reject</button>
-                  </>
-                ) : (
-                  <button className="bg-blue-500 text-white text-xs px-3 py-2 rounded" onClick={() => toggleEdit(data.id)}>Edit</button>
-                )
-              )}
-            </div>
-          </div>
-        ))}
-      </div>
+{filteredData && currentItems.map((data) => (
+  <div 
+    key={data.id} 
+    className="grid grid-cols-1 sm:grid-cols-7 text-center p-2 border-b border-gray-200 items-center bg-gray-100"
+  >
+    {/* Render Row Data */}
+    {renderRowData(data)}
+
+    {/* Render Status */}
+    <div 
+      className={`p-2 text-xs flex items-center justify-center space-x-1 ${
+        getStatusClass(data.leaveStatus)
+      }`}
+    >
+      {getStatusIcon(data.leaveStatus)}
+      {data.leaveStatus}
+    </div>
+
+    {/* Render Actions */}
+    <div className="p-2 flex justify-center space-x-2">
+      {renderActions(data)}
+    </div>
+    <div>{
+      data.medicalDocument ? (
+        <AttachmentItem
+            key={data.employeeId}
+            filename="medical Document"
+            fileUrl={data.medicalDocument}
+            icon={< MdOutlineFileDownload className="h-6 w-6 text-gray-400" />}
+        />
+      ):null
+      }
+    </div>
+  </div>
+))}
+   </div>
 
      {/* Pagination controls */}
-     <div className="bg-white dark:bg-gray-800 px-4 py-3 flex items-center justify-between border-t border-gray-200 dark:border-gray-700 sm:px-6">
-        <div className="flex-1 flex justify-between sm:hidden">
-          <button
-            onClick={() => paginate(currentPage - 1)}
-            disabled={currentPage === 1}
-            className={`relative inline-flex items-center px-4 py-2 border dark:bg-gray-700 dark:text-gray-300 text-sm font-medium rounded-md text-gray-700 ${darkMode ? "bg-gray-700 text-gray-300" : "bg-white text-gray-700"} hover:bg-gray-50`}
-          >
-            Previous
-          </button>
-          <button
-            onClick={() => paginate(currentPage + 1)}
-            disabled={currentPage === totalPages}
-            className={`ml-3 relative inline-flex items-center px-4 py-2 border text-sm font-medium rounded-md ${darkMode ? "dark:bg-gray-700 dark:text-gray-300 text-gray-300" : "bg-white text-gray-700"} hover:bg-gray-50`}
-          >
-            Next
-          </button>
-        </div>
-        <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-          <div>
-            <p className="text-sm text-gray-700 dark:text-gray-300">
-              Showing <span className="font-medium">{indexOfFirstEmployee + 1}</span> to <span className="font-medium">{Math.min(indexOfLastEmployee, total)}</span> of <span className="font-medium">{total}</span> results
-            </p>
-          </div>
-          <div>
-            <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
-              <button
-                onClick={() => paginate(currentPage - 1)}
-                disabled={currentPage === 1}
-                className={`relative inline-flex items-center px-2 py-2 rounded-l-md border ${darkMode ? "bg-gray-700 text-gray-300 border-gray-600" : "bg-white text-gray-500 border-gray-300"} hover:bg-gray-50`}
-              >
-                <span className="sr-only">Previous</span>
-                <FaChevronLeft className="h-5 w-5" aria-hidden="true" />
-              </button>
-              {[...Array(totalPages)].map((_, index) => (
-                <button
-                  key={index}
-                  onClick={() => paginate(index + 1)}
-                  className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${index + 1 === currentPage
-                      ? `z-10 ${darkMode ? "bg-blue-700 text-white border-blue-500" : "bg-blue-50 text-blue-600 border-blue-500"}`
-                      : `${darkMode ? "bg-gray-700 text-gray-300 border-gray-600" : "bg-white text-gray-500 border-gray-300"} hover:bg-gray-50`
-                    }`}
-                >
-                  {index + 1}
-                </button>
-              ))}
-              <button
-                onClick={() => paginate(currentPage + 1)}
-                disabled={currentPage === totalPages}
-                className={`relative inline-flex items-center px-2 py-2 rounded-r-md border ${darkMode ? "bg-gray-700 text-gray-300 border-gray-600" : "bg-white text-gray-500 border-gray-300"} hover:bg-gray-50`}
-              >
-                <span className="sr-only">Next</span>
-                <FaChevronRight className="h-5 w-5" aria-hidden="true" />
-              </button>
-            </nav>
-          </div>
-        </div>
-      </div>
+     <Pagination
+        currentPage={currentPage}
+        totalPages={totalPages}
+        paginate={paginate}
+        
+      />
+     
       {/* Rejection Reason Modal */}
       {showModal && (
         <div className="fixed inset-0 flex items-center justify-center bg-gray-600 bg-opacity-75">
-          <div className="bg-white dark:bg-gray-800 p-4 rounded-md shadow-md w-11/12 sm:w-1/3">
-            <h2 className="text-xl font-bold mb-4 dark:text-white">Reject Leave Request</h2>
+          <div className="bg-white p-4 rounded-md shadow-md w-11/12 sm:w-1/3">
+            <h2 className="text-xl font-bold mb-4">Reject Leave Request</h2>
             <textarea
               name='leaveReason'
-              className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded bg-gray-100 dark:bg-gray-700 text-black dark:text-white"
+              className="w-full p-2 border border-gray-300 rounded bg-gray-100 dark:bg-gray-700 text-black"
               rows="4"
               placeholder="Enter rejection reason..."
               value={rejectionReason.leaveReason}
               onChange={(e) => setRejectionReason(e.target.value)}
             ></textarea>
             <div className="flex justify-end space-x-2 mt-4">
-              <button className="bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-300 px-4 py-2 rounded" onClick={closeModal}>Cancel</button>
+              <button className="bg-gray-300 text-gray-700 px-4 py-2 rounded" onClick={closeModal}>Cancel</button>
               <button className="bg-red-500 text-white px-4 py-2 rounded" onClick={handleReject}>Confirm Reject</button>
             </div>
           </div>
@@ -302,42 +294,30 @@ export default function LeaveApprovalDashboard({managerId = 8}) {
   );
 }
 
+function AttachmentItem({ filename, icon, fileUrl }) {
+  const handleDownload = () => {
+      if (!fileUrl) {
+          console.error("File URL is invalid");
+          return;
+      }
+      // filename="medical_document.pdf"
+
+
+      console.log("Downloading file:", fileUrl, filename);
+      const link = document.createElement("a");
+      link.href = fileUrl;
+      link.setAttribute("download", filename); // Set download filename
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+  };
+
+  return (
+              <button variant="outline" size="lg" onClick={handleDownload}>
+                  {icon}
+              </button>
+  );
+}
 
 
 
-/*<div>
-        <h1 className='text-md font-bold'>Leave Requests</h1>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="text-sm font-bold">Employee</TableHead>
-              <TableHead className="text-sm font-bold">Employee ID</TableHead>
-              <TableHead className="text-sm font-bold">Start Date</TableHead>
-              <TableHead className="text-sm font-bold">End Date</TableHead>
-              <TableHead className="text-sm font-bold">Days</TableHead>
-              <TableHead className="text-sm font-bold">Status</TableHead>
-              <TableHead className="text-sm font-bold">Action</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredData !== null && filteredData.map((data) => (
-              <TableItem key={data.id} data={data} handleApprove={handleApprove} handleReject={() => openRejectModal(data.id)} />
-            ))}
-          </TableBody>
-        </Table>
-      </div>
-      */
-
-/*
-<div className="flex justify-center mt-4">
-  {Array.from({ length: totalPages }, (_, index) => (
-    <button
-      key={index + 1}
-      className={`px-4 py-2 border ${index + 1 === currentPage ? 'bg-blue-500 text-white' : 'bg-gray-200'}`}
-      onClick={() => setCurrentPage(index + 1)}
-    >
-      {index + 1}
-    </button>
-  ))}
-</div>
-*/

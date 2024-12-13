@@ -1,34 +1,22 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
-import { FaSun, FaMoon } from "react-icons/fa";
 
 function LeaveRequestForm() {
   const navigate = useNavigate();
   const location = useLocation();
   const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
-    employeeId: '',
-    email: '',
-    managerId: '',
-    managerEmail: 'raja@gmail.com',
-    phone: '',
-    position: '',
-    manager: 'Raja',
-    leaveRequestFor: 'Days',
-    leaveType: '',
-    leaveStartDate: '',
-    leaveEndDate: '',
-    duration: '',
-    comments: ''
+    firstName: '', lastName: '', employeeId: '', email: '', managerId: '', managerEmail: '', phone: '', 
+    position: '', managerName: 'Raja', leaveRequestFor: 'Days', leaveType: '', leaveStartDate: '',
+    leaveEndDate: '', duration: '', comments: '', medicalDocument:null
   });
+  const [selectedFile, setSelectedFile] = useState(null); // New state for file upload
   const [errors, setErrors] = useState(false);
   const [isCommentsEnabled, setIsCommentsEnabled] = useState(false);
-  const [isDarkMode, setIsDarkMode] = useState(false); // State for dark mode
   const [isEditing, setIsEditing] = useState(false);
   const [leaveError, setLeaveError] = useState(''); // To set leave balance error from backend
   const [loading, setLoading] = useState(false);
+  //const [remainingLeaves, setRemainingLeaves] = useState({}); // store the remaining leaves
   const publicHolidays = ['2024-11-01', '2024-12-25']; // Example of public holidays
 
   useEffect(() => {
@@ -37,6 +25,7 @@ function LeaveRequestForm() {
       setFormData(location.state);
     }
   }, [location.state]);
+
 
   const isPublicHoliday = (date) => {
     return publicHolidays.includes(date.toISOString().split('T')[0]);
@@ -61,10 +50,15 @@ function LeaveRequestForm() {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
+
+    // check if the field is for file upload
+   
     setFormData(prevData => ({
       ...prevData,
       [name]: value
     }));
+
+  
 
     if (name === 'leaveType') {
       setIsCommentsEnabled(value === 'OTHERS');
@@ -82,86 +76,118 @@ function LeaveRequestForm() {
     }
   };
 
+  const handleFileChange=(event)=>{
+    //  const { name} = event.target;
+    const file=event.target.files[0];
+    setSelectedFile(file);  
+    setFormData(prevData => ({
+      ...prevData,
+      medicalDocument : file
+    }));
+
+  }
+
   const handleSubmit = async (event) => {
     event.preventDefault();
-    setLeaveError('');
-    // Reset leave error
-
-    // Check if the email is valid
-  const emailPattern = /^[a-zA-Z0-9._%+-]+@(gmail\.com|middlewaretalents\.com)$/;
-  if (!emailPattern.test(formData.email)) {
-    setLeaveError('Please enter a valid email address from @gmail.com or @middlewaretalents.com');
-    setErrors(true);
-    return;
-  }
-    
-
-   
-    if (
-      formData.firstName === '' ||
-      formData.lastName === '' ||
-      formData.employeeId === '' ||
-      formData.email === '' ||
-      formData.managerId === '' ||
-      formData.manager === '' ||
-      formData.managerEmail === '' ||
-      formData.position === '' ||
-      formData.leaveStartDate === '' ||
-      formData.leaveEndDate === '' || // Include leaveEndDate in the validation
-      formData.leaveType === '' || // Include leaveType in the validation
-      formData.duration === ''
-    ) {
-
+    setLeaveError(''); // Reset error messages
+    setErrors(false); // Reset error state
+  
+    // Validation: Check for medical document if leave type is "SICK" and duration > 2
+    if (formData.leaveType === 'SICK' && formData.duration > 2 && !formData.medicalDocument) {
+      setLeaveError("Please upload a document");
+      return;
+    }
+  
+    // Validation: Check for valid email
+    const emailPattern = /^[a-zA-Z0-9._%+-]+@(gmail\.com|middlewaretalents\.com)$/;
+    if (!emailPattern.test(formData.email)) {
+      setLeaveError('Please enter a valid email address from @gmail.com or @middlewaretalents.com');
       setErrors(true);
       return;
     }
-
-    setLoading(true);
-
-     
-
-
+  
+    // Validation: Check if all required fields are filled
+    const requiredFields = [
+      'firstName', 'lastName', 'employeeId', 'email', 'managerId', 
+      'managerName', 'managerEmail', 'position', 'leaveStartDate', 
+      'leaveEndDate', 'leaveType', 'duration',
+    ];
+  
+    const hasEmptyFields = requiredFields.some(field => !formData[field]);
+    if (hasEmptyFields) {
+      setLeaveError('Please fill in all required fields.');
+      setErrors(true);
+      return;
+    }
+  
+    // Prepare FormData for submission
+    const data = new FormData();
+    for (const key in formData) {
+      data.append(key, formData[key]);
+    }
+    if (selectedFile) {
+      data.append("medicalDocument", selectedFile); // Attach medical document if provided
+    }
+  
+    setLoading(true); // Indicate loading state
+  
     try {
-
       const url = isEditing
         ? `http://localhost:8080/leave/update/${formData.id}`
         : `http://localhost:8080/leave/submit`;
-
-      const response = await axios({
-        method: isEditing ? 'PUT' : 'POST',
-        url,
-        data: formData,
-      });
-
-
+       let response;
+        if(!isEditing){
+          console.log(formData);
+          response = await axios({
+            method:  'POST',
+            url,
+            data : formData,
+            headers : {
+              'Content-Type' :  'multipart/form-data',
+            },
+            
+          });
+    
+        }
+        else{
+          
+          response = await axios({
+            method:  'PUT',
+            url,
+            data : formData,
+            /*headers : {
+              'Content-Type' :  'multipart/form-data',
+            },
+            */
+            
+            
+          });
+    
+        }
+  
+      // Handle success
       if (response.status === 200) {
         navigate('/employee');
       } else {
         setLeaveError('Error processing the request. Please try again.');
       }
     } catch (error) {
-      setLeaveError('Error submitting the form.');
+      // Handle errors
+      console.log(error)
+     
+      setLeaveError(error.response.data || 'Error occurred');
       setErrors(true);
-      setLeaveError(error.response.data.message || 'Error occurred');
+      console.log(leaveError);
+    } finally {
+      setLoading(false); // Reset loading state
     }
-    setLoading(false);
   };
-
-  const toggleTheme = () => {
-    setIsDarkMode(!isDarkMode);
-    document.documentElement.classList.toggle("dark");
-  };
-
+  
   return (
-    <div className={`mt-0 mb-0 ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-800'}`}>
+    <div className={'mt-0 mb-0 bg-gray-100 text-gray-800'}>
       <h1 className="text-2xl font-semibold text-center font-Playfair-Display">
         {isEditing ? 'EDIT LEAVE REQUEST' : 'NEW LEAVE REQUEST'}
       </h1>
-
-      {/* Theme Toggle Button */}
-      <button className="text-2xl p-2 rounded-full" onClick={toggleTheme}>
-        {isDarkMode ? <FaSun className="text-yellow-400" /> : <FaMoon className="text-gray-600" />}
-      </button>
 
       <form onSubmit={handleSubmit} className="max-w-md mx-auto p-4 rounded-lg shadow-lg space-y-4 mt-10">
         {/* Name Fields */}
@@ -171,7 +197,7 @@ function LeaveRequestForm() {
             <input
               type="text"
               name="firstName"
-              className={`p-2 border rounded-lg ${isDarkMode ? 'bg-gray-700 text-white border-gray-600' : 'bg-white border-gray-300'} focus:ring-2 focus:ring-blue-700 focus:outline-none text-sm`}
+              className={'p-2 border rounded-lg bg-white border-gray-300 focus:ring-2 focus:ring-blue-700 focus:outline-none text-sm'}
               onChange={handleChange}
               value={formData.firstName}
             />
@@ -183,7 +209,7 @@ function LeaveRequestForm() {
             <input
               type="text"
               name="lastName"
-              className={`p-2 border rounded-lg ${isDarkMode ? 'bg-gray-700 text-white border-gray-600' : 'bg-white border-gray-300'} focus:ring-2 focus:ring-blue-700 focus:outline-none text-sm`}
+              className={'p-2 border rounded-lg bg-white border-gray-300 focus:ring-2 focus:ring-blue-700 focus:outline-none text-sm'}
               onChange={handleChange}
               value={formData.lastName}
             />
@@ -197,7 +223,7 @@ function LeaveRequestForm() {
           <input
             type="text"
             name="employeeId"
-            className={`p-2 border rounded-lg ${isDarkMode ? 'bg-gray-700 text-white border-gray-600' : 'bg-white border-gray-300'} focus:ring-2 focus:ring-blue-700 focus:outline-none text-sm`}
+            className={`p-2 border rounded-lg bg-white border-gray-300 focus:ring-2 focus:ring-blue-700 focus:outline-none text-sm`}
             onChange={handleChange}
             value={formData.employeeId}
           />
@@ -211,7 +237,7 @@ function LeaveRequestForm() {
             <input
               type="email"
               name="email"
-              className={`p-2 border rounded-lg ${isDarkMode ? 'bg-gray-700 text-white border-gray-600' : 'bg-white border-gray-300'} focus:ring-2 focus:ring-blue-700 focus:outline-none text-sm`}
+              className={'p-2 border rounded-lg bg-white border-gray-300 focus:ring-2 focus:ring-blue-700 focus:outline-none text-sm'}
               onChange={handleChange}
               value={formData.email}
             />
@@ -223,7 +249,7 @@ function LeaveRequestForm() {
             <input
               type="text"
               name="position"
-              className={`p-2 border rounded-lg ${isDarkMode ? 'bg-gray-700 text-white border-gray-600' : 'bg-white border-gray-300'} focus:ring-2 focus:ring-blue-700 focus:outline-none text-sm`}
+              className={`p-2 border rounded-lg bg-white border-gray-300 focus:ring-2 focus:ring-blue-700 focus:outline-none text-sm`}
               onChange={handleChange}
               value={formData.position}
             />
@@ -235,26 +261,36 @@ function LeaveRequestForm() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="flex flex-col">
             <label htmlFor="managerId" className="mb-1">Manager ID</label>
-            <input
+            <select
               type="text"
               name="managerId"
-              className={`p-2 border rounded-lg ${isDarkMode ? 'bg-gray-700 text-white border-gray-600' : 'bg-white border-gray-300'} focus:ring-2 focus:ring-blue-700 focus:outline-none text-sm`}
+              className={`p-2 border rounded-lg bg-white border-gray-300 focus:ring-2 focus:ring-blue-700 focus:outline-none text-sm`}
               onChange={handleChange}
-              value={formData.managerId}
-            />
+              value={formData.managerId}>
+               <option value="">Select Manager ID</option>
+               <option value="MTL1006">MTL1006</option>
+               <option value="MTL1008">MTL1008</option>
+               <option value="MTL1009">MTL1009</option>
+              </select>
             {errors && formData.managerId === '' && <span className="text-red-600 text-sm">Manager ID is required</span>}
           </div>
 
           <div className="flex flex-col">
             <label htmlFor="managerEmail" className="mb-1">Manager Email</label>
-            <input
+            <select
               type="email"
               name="managerEmail"
-              className={`p-2 border rounded-lg ${isDarkMode ? 'bg-gray-700 text-white border-gray-600' : 'bg-white border-gray-300'} focus:ring-2 focus:ring-blue-700 focus:outline-none text-sm`}
+              className={`p-2 border rounded-lg bg-white border-gray-300 focus:ring-2 focus:ring-blue-700 focus:outline-none text-sm`}
               onChange={handleChange}
               value={formData.managerEmail}
-              readOnly
-            />
+              >
+              <option value="">Select Manager Email</option>
+              <option value="vani@gmail.com">vani@gmail.com</option>
+              <option value="yamuna@gmail.com">yamuna@gmail.com</option>
+              <option value="sowdhamini@gmail.com">sowdhamini@gmail.com</option>
+              <option value="swapnadamala4@gmail.com">swapnadamala4@gmail.com</option>
+              </select>
+            
           </div>
         </div>
 
@@ -265,9 +301,10 @@ function LeaveRequestForm() {
             <input
               type="date"
               name="leaveStartDate"
-              className={`p-2 border rounded-lg ${isDarkMode ? 'bg-gray-700 text-white border-gray-600' : 'bg-white border-gray-300'} focus:ring-2 focus:ring-blue-700 focus:outline-none text-sm`}
+              className={`p-2 border rounded-lg bg-white border-gray-300 focus:ring-2 focus:ring-blue-700 focus:outline-none text-sm`}
               onChange={handleChange}
               value={formData.leaveStartDate}
+              min={new Date().toISOString().split("T")[0]} 
             />
             {errors && formData.leaveStartDate === '' && <span className="text-red-600 text-sm">Start Date is required</span>}
           </div>
@@ -277,9 +314,10 @@ function LeaveRequestForm() {
             <input
               type="date"
               name="leaveEndDate"
-              className={`p-2 border rounded-lg ${isDarkMode ? 'bg-gray-700 text-white border-gray-600' : 'bg-white border-gray-300'} focus:ring-2 focus:ring-blue-700 focus:outline-none text-sm`}
+              className={`p-2 border rounded-lg bg-white border-gray-300 focus:ring-2 focus:ring-blue-700 focus:outline-none text-sm`}
               onChange={handleChange}
               value={formData.leaveEndDate}
+              min={new Date().toISOString().split("T")[0]} 
             />
             {errors && formData.leaveEndDate === '' && <span className="text-red-600 text-sm">End Date is required</span>}
           </div>
@@ -291,7 +329,7 @@ function LeaveRequestForm() {
           <input
             type="text"
             name="duration"
-            className={`p-2 border rounded-lg ${isDarkMode ? 'bg-gray-700 text-white border-gray-600' : 'bg-white border-gray-300'} focus:ring-2 focus:ring-blue-700 focus:outline-none text-sm`}
+            className={`p-2 border rounded-lg bg-white border-gray-300 focus:ring-2 focus:ring-blue-700 focus:outline-none text-sm`}
             value={formData.duration}
             readOnly
           />
@@ -301,9 +339,10 @@ function LeaveRequestForm() {
         {/* Leave Type */}
         <div className="flex flex-col">
           <label htmlFor="leaveType" className="mb-1">Leave Type</label>
+          <div className='flex items-center space-x-2'>
           <select
             name="leaveType"
-            className={`p-2 border rounded-lg ${isDarkMode ? 'bg-gray-700 text-white border-gray-600' : 'bg-white border-gray-300'} focus:ring-2 focus:ring-blue-700 focus:outline-none text-sm`}
+            className={`p-2 border rounded-lg bg-white border-gray-300 focus:ring-2 focus:ring-blue-700 focus:outline-none text-sm`}
             onChange={handleChange}
             value={formData.leaveType}
           >
@@ -311,10 +350,28 @@ function LeaveRequestForm() {
             <option value="SICK">Sick Leave</option>
             <option value="CASUAL">Casual Leave</option>
             <option value="VACATION">Vacation Leave</option>
+            <option value="MARRIAGE">Marriage Leave</option>
+            <option value="MATERNITY">Maternity Leave</option>
+            <option value="PATERNITY">Paternity Leave</option>
             <option value="OTHERS">Others</option>
           </select>
+         
+          </div>
           {errors && formData.leaveType === '' && <span className="text-red-600 text-sm">Leave Type is required</span>}
         </div>
+
+        {formData.leaveType === 'SICK' && formData.duration > 2 && (
+          <div className="flex flex-col">
+            <label htmlFor="document" className="mb-1">Upload Document</label>
+            <input
+              type="file"
+              name="document"
+              onChange={handleFileChange}
+              //value={formData.medicalDocument}
+              className={`p-2 border rounded-lg bg-white border-gray-300 focus:ring-2 focus:ring-blue-700 focus:outline-none text-sm`}
+            />
+          </div>
+        )}
 
         {/* Comments for "OTHERS" Leave Type */}
         {isCommentsEnabled && (
@@ -323,7 +380,7 @@ function LeaveRequestForm() {
             <textarea
               name="comments"
               rows="4"
-              className={`p-2 border rounded-lg ${isDarkMode ? 'bg-gray-700 text-white border-gray-600' : 'bg-white border-gray-300'} focus:ring-2 focus:ring-blue-700 focus:outline-none text-sm`}
+              className={`p-2 border rounded-lg bg-white border-gray-300 focus:ring-2 focus:ring-blue-700 focus:outline-none text-sm`}
               onChange={handleChange}
               value={formData.comments}
             ></textarea>
@@ -345,3 +402,10 @@ function LeaveRequestForm() {
 }
 
 export default LeaveRequestForm;
+/*
+{formData.leaveType && (
+  <span className="text-sm text-gray-500">
+    Remaining: {remainingLeaves[formData.leaveType] || 0}
+  </span>
+)}
+  */
