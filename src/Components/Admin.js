@@ -34,7 +34,7 @@ export default function LeaveApprovalDashboard({managerId = 'MTL1006'}) {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const response = await axios.get(`http://localhost:8080/leave/manager/${managerId}`);
+        const response = await axios.get(`https://leave-backend-app-d2fve9dsdjb4hgev.germanywestcentral-01.azurewebsites.net/leave/manager/${managerId}`);
         const leaves = response.data;
         // Sort leaves with new entries at the top
         setData(leaves.sort((a, b) => (b.createdAt || b.id) - (a.createdAt || a.id))); // Assuming 'createdAt' is available
@@ -55,8 +55,8 @@ export default function LeaveApprovalDashboard({managerId = 'MTL1006'}) {
 
   const handleApprove = async (id) => {
     try {
-      await axios.put(`http://localhost:8080/leave/approve/${id}`);
-      const response = await axios.get(`http://localhost:8080/leave/manager/${managerId}`);
+      await axios.put(`https://leave-backend-app-d2fve9dsdjb4hgev.germanywestcentral-01.azurewebsites.net/leave/approve/${id}`);
+      const response = await axios.get(`https://leave-backend-app-d2fve9dsdjb4hgev.germanywestcentral-01.azurewebsites.net/leave/manager/${managerId}`);
       const leaves = response.data;
       // Sort leaves with new entries at the top
       setData(leaves.sort((a, b) => (b.createdAt || b.id) - (a.createdAt || a.id)));
@@ -78,8 +78,8 @@ export default function LeaveApprovalDashboard({managerId = 'MTL1006'}) {
       console.log(rejectionReason);
       // Encode the rejectionReason to ensure proper handling of special characters
     //const encodedReason = encodeURIComponent(rejectionReason);
-      await axios.put(`http://localhost:8080/leave/reject/${selectedLeaveId}/${rejectionReason}`);
-      const response = await axios.get(`http://localhost:8080/leave/manager/${managerId}`);
+      await axios.put(`https://leave-backend-app-d2fve9dsdjb4hgev.germanywestcentral-01.azurewebsites.net/leave/reject/${selectedLeaveId}/${rejectionReason}`);
+      const response = await axios.get(`https://leave-backend-app-d2fve9dsdjb4hgev.germanywestcentral-01.azurewebsites.net/leave/manager/${managerId}`);
       const leaves = response.data;
       // Sort leaves with new entries at the top
       setData(leaves.sort((a, b) => (b.createdAt || b.id) - (a.createdAt || a.id)));

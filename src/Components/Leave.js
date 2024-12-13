@@ -133,8 +133,8 @@ function LeaveRequestForm() {
   
     try {
       const url = isEditing
-        ? `http://localhost:8080/leave/update/${formData.id}`
-        : `http://localhost:8080/leave/submit`;
+        ? `https://leave-backend-app-d2fve9dsdjb4hgev.germanywestcentral-01.azurewebsites.net/leave/update/${formData.id}`
+        : `https://leave-backend-app-d2fve9dsdjb4hgev.germanywestcentral-01.azurewebsites.net/leave/submit`;
        let response;
         if(!isEditing){
           console.log(formData);

@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { FaCheckCircle, FaTimesCircle, FaHourglassHalf, FaTrash, FaEdit} from "react-icons/fa";
 import Pagination, {getPaginationData} from '../utils/Pagination';
 
-export default function Employee({ employeeId = 'MTL1018' }) {
+export default function Employee({ employeeId = 'MTL1014' }) {
   const [leaveRequests, setLeaveRequests] = useState([])
   const navigate = useNavigate();
   // pagination state
@@ -15,7 +15,7 @@ export default function Employee({ employeeId = 'MTL1018' }) {
     const fetchLeaveRequests = async () => {
       let employeeId= 'MTL1014';
       try {
-        const response = await axios.get(`http://localhost:8080/leave/employee/${employeeId}`);
+        const response = await axios.get(`https://leave-backend-app-d2fve9dsdjb4hgev.germanywestcentral-01.azurewebsites.net/leave/employee/${employeeId}`);
         // Sort leave requests to put the most recent requests on top
         const leaves = response.data
         setLeaveRequests(leaves.sort((a, b) => (b.createdAt || b.id) - (a.createdAt || a.id)));
@@ -61,7 +61,7 @@ export default function Employee({ employeeId = 'MTL1018' }) {
 
   const handleDelete = async (id) => {
     try {
-      await axios.delete(`http://localhost:8080/leave/delete/${id}`);
+      await axios.delete(`https://leave-backend-app-d2fve9dsdjb4hgev.germanywestcentral-01.azurewebsites.net/leave/delete/${id}`);
       setLeaveRequests((prevRequests) =>
         prevRequests.filter((request) => request.id !== id)
       );
